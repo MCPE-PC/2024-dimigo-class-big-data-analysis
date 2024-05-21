@@ -1,0 +1,104 @@
+---
+title: "상점"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(corrplot)
+
+stores <- read.csv("Stores.csv", header = TRUE)
+```
+
+## 라이선스
+
+자료의 라이선스에 따라, 이 문서에는 특별히 [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) 라이선스가 적용됩니다.
+
+## 자료
+
+* [Kaggle](https://www.kaggle.com/)에 업로드된 [Supermarket store branches sales analysis](https://www.kaggle.com/datasets/surajjha101/stores-area-and-sales-data) CSV 데이터셋을 활용합니다.
+  * 라이선스: [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)
+
+```{r}
+summary(stores)
+```
+
+* `Store.ID`: (Index) ID of the particular store.
+* (면적) `Store_Area`: Physical Area of the store in yard square.
+* (품목 개수) `Items_Available`: Number of different items available in the corresponding store.
+* (일간 방문객 수) `Daily_Customer_Count`: Number of customers who visited to stores on an average over month.
+* (월 매출) `Store_Sales`: Sales in (US $) that stores made.
+
+## 계획
+
+### 정보
+
+`Store_Area`와 `Items_Available`, `Daily_Customer_Count`, `Store_Sales`의 관계를 확인합니다.
+
+### 지혜
+
+자료에 있는 상점의 면적이 그 상점의 품목 개수나 일간 방문객 수, 월 매출과 일정한 관계를 보이는지 확인합니다.
+
+### 예상 효과
+
+상점 창업 부지 면적을 합리적으로 결정할 수 있습니다.
+
+## 실행
+
+### 전처리
+
+시각화 속도를 개선하기 위해 미리 `Store_Area`를 기준으로 오름차순 정렬합니다.
+
+```{r}
+stores <- stores[order(stores$Store_Area),]
+
+write.csv(stores, "preprocessed.csv")
+```
+
+### 시각화
+
+#### 상관관계
+
+```{r}
+corrplot(cor(stores))
+```
+
+#### 면적에 따른 품목 개수
+
+```{r}
+plot(stores$Store_Area, stores$Items_Available, type="h")
+```
+
+#### 면적에 따른 일간 방문객 수
+
+```{r}
+plot(stores$Store_Area, stores$Daily_Customer_Count, type="h")
+```
+
+#### 면적에 따른 월 매출
+
+```{r}
+plot(stores$Store_Area, stores$Store_Sales, type="h")
+```
+
+## 결과
+
+### 설명
+
+* 자료에 있는 상점의 면적과 품목 개수는 거의 정비례합니다.
+* 하지만 면적(또는 품목 개수)과 일간 방문객 수는 상관관계가 거의 없습니다.
+* 면적(또는 품목 개수)과 월 매출은 미묘한 상관관계가 있습니다.
+  * 여전히 유의미하지 않지만 면적과 일간 방문객 수의 상관관계보다 높습니다.
+* 덧붙이자면, 일간 방문객 수와 월 매출은 전혀 상관관계가 없습니다.
+
+### 분석
+
+* 상점이 넓으면 확실히 더 많은 상품을 판매할 수 있습니다.
+* 하지만 의외로, 더 넓거나 판매 상품 개수가 더 많다고 고객이나 매출이 더 많지 않습니다.
+
+### 개선 방안
+
+* 상식적으로 중요하다고 판단되는 상점 부지 입지와의 상관관계를 분석할 수 있는 자료를 수집해야 합니다.
