@@ -1,0 +1,196 @@
+---
+title: "상점"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(corrplot)
+
+stores <- read.csv("Stores.csv", header = TRUE)
+big_mart <- read.csv("BigMart-train.csv", header = TRUE)
+coles_sales <- read.csv("ColesSalesData.csv", header = TRUE)
+coles_store <- read.csv("ColesStoreData.csv", header = TRUE)
+```
+
+## 라이선스
+
+자료의 라이선스에 따라, 이 문서에는 특별히 [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) 라이선스가 적용됩니다.
+
+## 자료
+
+* [Supermarket store branches sales analysis](https://www.kaggle.com/datasets/surajjha101/stores-area-and-sales-data)
+* [Big Mart Sales Prediction Datasets](https://www.kaggle.com/datasets/shivan118/big-mart-sales-prediction-datasets)
+* [Coles Supermarket Sales](https://www.kaggle.com/datasets/ankitab18/coles-supermarket-sales)
+
+```{r}
+summary(stores)
+summary(big_mart)
+summary(coles_sales)
+summary(coles_store)
+```
+
+## 계획
+
+### 정보
+
+`Store_Area`와 `Items_Available`, `Daily_Customer_Count`, `Store_Sales`의 관계를 확인합니다.
+
+### 지혜
+
+자료에 있는 상점의 면적이 그 상점의 품목 개수나 일간 방문객 수, 월 매출과 일정한 관계를 보이는지 확인합니다.
+
+### 예상 효과
+
+- 상점 창업 부지 면적을 합리적으로 결정할 수 있습니다.
+- 상점이 대체로 얼마나 빽빽하게 상품을 진열하는지 알 수 있습니다.
+- 이상하지 않은 범위에서 좋은(단위면적 당 임대료 비쌈) 입지의 좁은(면적) 상점과 나쁜(단위면적 당 임대료 쌈) 입지의 넓은(면접) 상점 중 더 효과적인 창업 전략을 선택할 수 있습니다.
+
+### 2학기에 추가하는 내용
+
+- 새 자료 추가
+- 자료 설명 축소
+- 예상 효과 개선
+- 전처리 개선
+- 새 시각화 추가
+- 결과 개선
+
+## 실행
+
+### 전처리
+
+- `stores`
+  - 시각화 속도를 개선하기 위해 미리 `Store_Area`를 기준으로 오름차순 정렬합니다.
+  - 수치와 무관한 식별자 `Store.ID`를 제거합니다.
+- `big_mart`
+  - `Outlet_Size`를 알 수 없는 행을 제거합니다.
+  - `Outlet_Size`를 수치화합니다.
+  - `Item_Outlet_Sales`를 상점마다 집계합니다.
+  - `stores`와 대응하는 열만 사용하고 열 이름을 일치시킵니다.
+  - 시각화 속도를 개선하기 위해 미리 `Store_Area`를 기준으로 오름차순 정렬합니다.
+- `coles`
+  - `coles_sales`와 `coles_store`를 병합합니다.
+  - `stores`와 대응하는 열만 사용하고 열 이름을 일치시킵니다.
+  - 시각화 속도를 개선하기 위해 미리 `Store_Area`를 기준으로 오름차순 정렬합니다.
+- 새로운 파일로 저장합니다.
+
+```{r}
+stores <- stores[order(stores$Store_Area), ]
+stores$Store.ID <- NULL
+
+write.csv(stores, "preprocessed-fall-semester.csv")
+
+big_mart$Outlet_Size <-
+  as.numeric(
+    factor(
+      big_mart$Outlet_Size,
+      levels = c("Small", "Medium", "High"), labels = c(0, 1, 2)
+    )
+  )
+
+big_mart <- big_mart[!is.na(big_mart$Outlet_Size), ]
+
+big_mart_ <- aggregate(
+  x = big_mart$Item_Outlet_Sales,
+  by = list(big_mart$Outlet_Identifier),
+  FUN = sum
+)
+
+colnames(big_mart_) <- c("Outlet_Identifier", "Store_Sales")
+
+big_mart <- merge(big_mart_, big_mart, by = "Outlet_Identifier")
+
+big_mart <- big_mart[, c("Outlet_Identifier", "Outlet_Size", "Store_Sales")]
+
+big_mart <- big_mart[!duplicated(big_mart$Outlet_Identifier), ]
+
+colnames(big_mart) <- c("Store.ID", "Store_Area", "Store_Sales")
+
+big_mart$Store.ID <- NULL
+
+big_mart <- big_mart[order(big_mart$Store_Area), ]
+
+write.csv(big_mart, "preprocessed-fall-semester-big-mart.csv")
+
+coles_store$Coles_StoreIDNo <- coles_store$Coles_StoreID
+
+coles <- merge(coles_sales, coles_store, by = "Coles_StoreIDNo")
+
+coles <- coles[, c("Store_Area", "Gross_Sale")]
+
+colnames(coles) <- c("Store_Area", "Store_Sales")
+
+big_mart <- big_mart[order(big_mart$Store_Area), ]
+
+write.csv(coles, "preprocessed-fall-semester-coles.csv")
+```
+
+### 시각화
+
+#### 상관관계
+
+```{r}
+corrplot(cor(stores))
+
+corrplot(cor(big_mart))
+
+corrplot(cor(coles))
+```
+
+#### 면적에 따른 품목 개수
+
+```{r}
+plot(stores$Store_Area, stores$Items_Available, type = "h")
+```
+
+#### 면적에 따른 일간 방문객 수
+
+```{r}
+plot(stores$Store_Area, stores$Daily_Customer_Count, type = "h")
+```
+
+#### 면적에 따른 (월 등) 매출
+
+```{r}
+plot(stores$Store_Area, stores$Store_Sales, type = "h")
+
+plot(big_mart$Store_Area, big_mart$Store_Sales)
+
+plot(coles$Store_Area, coles$Store_Sales)
+```
+
+#### 면적에 따른 일간 방문객 당 매출
+
+```{r}
+plot(
+  stores$Store_Area,
+  stores$Store_Sales / stores$Daily_Customer_Count,
+  type = "h"
+)
+```
+
+## 결과
+
+### 설명
+
+* 자료에 있는 상점의 면적에 대한 품목 개수는 제곱미터 당 약 1.3개로 거의 정비례합니다.
+* 하지만 면적(또는 품목 개수)과 일간 방문객 수는 상관관계가 거의 없습니다.
+* 면적(또는 품목 개수)과 월 매출은 미묘한 상관관계가 있습니다.
+  * 여전히 유의미하지 않지만 면적과 일간 방문객 수의 상관관계보다 높습니다.
+* 덧붙이자면, 일간 방문객 수와 월 매출은 전혀 상관관계가 없습니다.
+
+### 분석
+
+* 상점이 넓으면 확실히 더 많은 상품을 판매할 수 있습니다.
+* 하지만 의외로, 더 넓거나 판매 상품 개수가 더 많다고 반드시 고객이나 매출이 더 많지는 않습니다.
+  * 새로운 자료는 원래 자료보다는 넓이와 매출 간의 상관관계가 훨씬 더 높습니다.
+* 넓이 등과 무관하게 방문객이 많더라도 매출은 전혀 상응하지 않습니다.
+* 가장 큰 수준의 상점은 매출로 중간 크기 상점의 평균과 비슷합니다.
+* 방문객 당 매출이 중요할 수 있습니다.
+
+### 개선 방안
+
+* 면적과 매출의 상관관계를 더 자세히 분석하고 예측해볼 수 있습니다.
